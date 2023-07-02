@@ -11,11 +11,11 @@ type FormFields = {
 }
 
 const formFields = [
-  { label: "Konzentration [mg/ml]", name: "concentration_mg_ml" },
+  { label: "Konzentration des Medikaments [mg/ml]", name: "concentration_mg_ml" },
   { label: "Tagesdosis in mg pro kg Gewicht [mg/KGW]", name: "daily_dose_mg_kgw" },
   { label: "Gewicht des Tieres [g]", name: "weight_g" },
   { label: "Behandlungslänge [Tage]", name: "treatment_length_days" },
-  { label: "Mindesttagesdosierung Gemisch (z.B. die Mindestmenge pro Tag die in der Spritze gut dosiert werden kann) [ml]", name: "min_daily_dose_ml" },
+  { label: "Mindesttagesdosierung Gemisch (z.B. die Mindestgesamtmenge an Gemisch pro Tag die in der Spritze gut dosiert werden kann) [ml]", name: "min_daily_dose_ml" },
 ];
 
 interface InputFieldProps {
@@ -41,16 +41,22 @@ const InputField: React.FC<InputFieldProps> = ({ label, register, name }) => (
   </div>
 );
 
-const OutputField: React.FC<OutputFieldProps> = ({ label, value }) => (
-  <div className="mb-2">
-    <label className="block text-gray-400 text-sm font-bold mb-2">
-      {label}
-    </label>
-    <div className="shadow appearance-none border rounded w-1/4 py-1 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline">
-      {value.toFixed(3)}
+const OutputField: React.FC<OutputFieldProps> = ({ label, value }) => {
+  // Use toFixed(3) and then remove trailing zeros and possibly the decimal point
+  const displayValue = value.toFixed(3).replace(/\.?0+$/, "");
+  
+  return (
+    <div className="mb-2">
+      <label className="block text-gray-400 text-sm font-bold mb-2">
+        {label}
+      </label>
+      <div className="shadow appearance-none border rounded w-1/4 py-1 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline">
+        {displayValue}
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
 
 function ceilToNearest(num: number, precision: number) {
   return Math.ceil(num / precision) * precision;
@@ -81,6 +87,7 @@ export default function Calculator() {
 
   const total_fruit_juice_solution_ml = daily_fruit_juice_mix_ml * treatment_length_days
   const total_fruit_juice_amount_ml = total_fruit_juice_solution_ml - total_treatment_amount_medication_ml
+  const percentage_of_medication_in_mix = 100 * total_treatment_amount_medication_ml / total_fruit_juice_solution_ml
 
   const onSubmit = ((data: any) => {
     console.log(data);
@@ -109,10 +116,10 @@ export default function Calculator() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-around max-w-2xl sm:w-full">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-around max-w-2xl w-full sm:w-full">
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="p-6 w-full"
+          className="p-6 w-full lg:w-1/2"
         >
           {formFields.map((field) => (
             <InputField
@@ -122,13 +129,16 @@ export default function Calculator() {
               name={field.name as keyof FormFields} // the change is here
             />
           ))}
-          
-          <OutputField label="Gesamtmenge Medikament [ml]" value={total_treatment_amount_medication_ml} />
-          <OutputField label="Gesamtmenge Fruchtsaft [ml]" value={total_fruit_juice_amount_ml} />
-          <OutputField label="Gesamtmenge Fruchtsaft-Medikament-Gemisch [ml]" value={total_fruit_juice_solution_ml} />
-          <OutputField label="Tageseinheit Fruchts-Medikament-Gemisch [ml]" value={daily_fruit_juice_mix_ml} />
-
         </form>
+          
+        <div className="p-6 w-full lg:w-1/2">
+          <OutputField label="Medikamentenmenge pro Tag [ml]" value={daily_dose_normalized_weight_ml} />
+          <OutputField label="Gesamtmenge Medikament [ml]" value={total_treatment_amount_medication_ml} />
+          <OutputField label="Gesamtmenge Fruchtsaft o.ä. [ml]" value={total_fruit_juice_amount_ml} />
+          <OutputField label="Anteil an Medikament im Gemisch [%]" value={percentage_of_medication_in_mix} />
+          <OutputField label="Gesamtmenge Medikament-Gemisch [ml]" value={total_fruit_juice_solution_ml} />
+          <OutputField label="Tageseinheit Medikament-Gemisch (Wieviel kommt pro Tag in die Spritze?) [ml]" value={daily_fruit_juice_mix_ml} />
+        </div>
       </div>
     </main>
   );
