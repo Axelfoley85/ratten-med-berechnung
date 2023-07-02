@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { UseFormRegister } from 'react-hook-form';
+import { useRouter } from "next/router";
 
 type FormFields = {
   concentration_mg_ml: number;
@@ -63,15 +64,53 @@ function ceilToNearest(num: number, precision: number) {
 }
 
 export default function Calculator() {
-  const { register, handleSubmit, watch } = useForm({
-    defaultValues: {
-      concentration_mg_ml: 100,
-      daily_dose_mg_kgw: 20,
-      weight_g: 350,
-      treatment_length_days: 14,
-      min_daily_dose_ml: 0.2,
-    },
+  const router = useRouter()
+
+  const defaultValues = {
+    concentration_mg_ml: 100,
+    daily_dose_mg_kgw: 20,
+    weight_g: 350,
+    treatment_length_days: 14,
+    min_daily_dose_ml: 0.2,
+  };
+
+  const { register, handleSubmit, watch, reset } = useForm<FormFields>({
+    defaultValues,
   });
+
+  // Update form state from URL when component mounts
+  useEffect(() => {
+    if (Object.keys(router.query).length > 0) {
+      const initialFormValues = {
+        concentration_mg_ml: parseFloat(router.query.concentration_mg_ml as string) || defaultValues.concentration_mg_ml,
+        daily_dose_mg_kgw: parseFloat(router.query.daily_dose_mg_kgw as string) || defaultValues.daily_dose_mg_kgw,
+        weight_g: parseFloat(router.query.weight_g as string) || defaultValues.weight_g,
+        treatment_length_days: parseFloat(router.query.treatment_length_days as string) || defaultValues.treatment_length_days,
+        min_daily_dose_ml: parseFloat(router.query.min_daily_dose_ml as string) || defaultValues.min_daily_dose_ml,
+      };
+
+      reset(initialFormValues);
+    }
+  }, [router.query, reset]);
+
+  // Update URL from form state whenever it changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const queryParams = {
+        concentration_mg_ml: watch("concentration_mg_ml"),
+        daily_dose_mg_kgw: watch("daily_dose_mg_kgw"),
+        weight_g: watch("weight_g"),
+        treatment_length_days: watch("treatment_length_days"),
+        min_daily_dose_ml: watch("min_daily_dose_ml"),
+      };
+      if (window.location.protocol !== 'https:' && window.location.host !== 'localhost:3000') {
+        router.push({
+          pathname: router.pathname,
+          query: queryParams,
+        }, undefined, { scroll: false });
+      }
+    }
+  }, [router, watch]);
 
   const daily_dose_mg_kgw = watch("daily_dose_mg_kgw");
   const concentration_mg_ml = watch("concentration_mg_ml");
@@ -133,9 +172,9 @@ export default function Calculator() {
           
         <div className="p-6 w-full lg:w-1/2">
           <OutputField label="Medikamentenmenge pro Tag [ml]" value={daily_dose_normalized_weight_ml} />
+          <OutputField label="Anteil an Medikament im Gemisch [%]" value={percentage_of_medication_in_mix} />
           <OutputField label="Gesamtmenge Medikament [ml]" value={total_treatment_amount_medication_ml} />
           <OutputField label="Gesamtmenge Fruchtsaft o.ä. [ml]" value={total_fruit_juice_amount_ml} />
-          <OutputField label="Anteil an Medikament im Gemisch [%]" value={percentage_of_medication_in_mix} />
           <OutputField label="Gesamtmenge Medikament-Gemisch [ml]" value={total_fruit_juice_solution_ml} />
           <OutputField label="Tageseinheit Medikament-Gemisch (Wieviel kommt pro Tag in die Spritze?) [ml]" value={daily_fruit_juice_mix_ml} />
         </div>
