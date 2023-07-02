@@ -1,7 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { UseFormRegister } from 'react-hook-form';
 import { useRouter } from "next/router";
+import QRCode from 'qrcode.react';
+
 
 type FormFields = {
   concentration_mg_ml: number;
@@ -10,6 +12,15 @@ type FormFields = {
   treatment_length_days: number;
   min_daily_dose_ml: number;
 }
+
+type OutputFieldProps = {
+  label: string;
+  value: number;
+};
+
+type OutputLinkProps = {
+  values: FormFields;
+};
 
 const formFields = [
   { label: "Konzentration des Medikaments [mg/ml]", name: "concentration_mg_ml" },
@@ -24,11 +35,6 @@ interface InputFieldProps {
   register: UseFormRegister<FormFields>;
   name: string;
 }
-
-type OutputFieldProps = {
-  label: string;
-  value: number;
-};
 
 const InputField: React.FC<InputFieldProps> = ({ label, register, name }) => (
   <div className="mb-2">
@@ -62,6 +68,55 @@ const OutputField: React.FC<OutputFieldProps> = ({ label, value }) => {
 function ceilToNearest(num: number, precision: number) {
   return Math.ceil(num / precision) * precision;
 }
+
+const OutputLink: React.FC<OutputLinkProps> = ({ values }) => {
+  const router = useRouter();
+  const stringifiedValues = Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [key, String(value)])
+  );
+  const query = new URLSearchParams(stringifiedValues);
+  // ensure window is defined before using it
+  let url;
+  if (typeof window !== "undefined") {
+    url = `${window.location.origin}${router.pathname}?${query.toString()}`;
+  } else {
+    // provide a fallback or handle appropriately
+    url = '';
+  }
+
+  const urlInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCopyClick = async () => {
+    if (urlInputRef.current) {
+      await navigator.clipboard.writeText(urlInputRef.current.value);
+    }
+  }
+
+  return (
+    <div className="mb-4">
+      <label className="block text-gray-400 text-sm font-bold mb-2">
+        Werte teilen
+      </label>
+      <div className="flex items-center">
+        <input
+          ref={urlInputRef}
+          readOnly
+          value={url.toString()}
+          className="block w-full bg-gray-400 text-sm py-1 px-2 rounded text-left mb-2 overflow-scroll"
+        />
+        <button 
+          onClick={handleCopyClick}
+          className="ml-2 py-1 px-2 bg-gray-700 text-white rounded cursor-pointer"
+        >
+          Kopieren
+        </button>
+      </div>
+      <div className="flex justify-center">
+        <QRCode value={url} />
+      </div>
+    </div>
+  );
+};
 
 export default function Calculator() {
   const router = useRouter()
@@ -128,6 +183,14 @@ export default function Calculator() {
   const total_fruit_juice_amount_ml = total_fruit_juice_solution_ml - total_treatment_amount_medication_ml
   const percentage_of_medication_in_mix = 100 * total_treatment_amount_medication_ml / total_fruit_juice_solution_ml
 
+  const formValues = {
+    concentration_mg_ml: watch("concentration_mg_ml"),
+    daily_dose_mg_kgw: watch("daily_dose_mg_kgw"),
+    weight_g: watch("weight_g"),
+    treatment_length_days: watch("treatment_length_days"),
+    min_daily_dose_ml: watch("min_daily_dose_ml"),
+  };
+
   const onSubmit = ((data: any) => {
     console.log(data);
   });
@@ -178,6 +241,10 @@ export default function Calculator() {
           <OutputField label="Gesamtmenge Medikament-Gemisch [ml]" value={total_fruit_juice_solution_ml} />
           <OutputField label="Tageseinheit Medikament-Gemisch (Wieviel kommt pro Tag in die Spritze?) [ml]" value={daily_fruit_juice_mix_ml} />
         </div>
+      </div>
+
+      <div className="p-1 w-full lg:w-1/4">
+        <OutputLink values={formValues} />
       </div>
     </main>
   );
